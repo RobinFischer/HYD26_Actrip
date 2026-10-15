@@ -686,7 +686,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       writeCache(rows); render(rows);
       setStatus(busMsg + ", " + rows.length.toLocaleString() + " stations loaded");
     }).catch(function (err) {
-      showFailure("rail and YouBike stations", err);
+      showFailure("rail and YouBikes stations", err);
       setStatus(busMsg + " loaded. Rail and YouBike stations couldn't load from OpenStreetMap.", true);
     });
   }
