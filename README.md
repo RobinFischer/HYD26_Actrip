@@ -13,3 +13,5 @@ Learn more about the initiative on the [official Hack Your District 2026 website
 ## Status
 
 🚧 Early concept — more details coming soon.
+
+![Actrip concept image](./images/csm_Taichung_2026_78b6ccf34c.webp)
