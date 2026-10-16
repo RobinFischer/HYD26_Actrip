@@ -301,6 +301,17 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
 .mini-warn { display: inline-block; vertical-align: middle; margin-right: 4px; line-height: 0; }
 .mini-warn svg { width: 15px; height: 14px; }
 
+
+.place-head { font: 600 10.5px/1 var(--font-body); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 8px 8px 3px; }
+.place-ico { width: 10px; height: 10px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--hsr); justify-self: center; flex: none; margin: 0 2px; }
+.place-area { display: block; font-size: 11px; color: var(--muted); font-family: var(--font-body); overflow: hidden; text-overflow: ellipsis; }
+.results .rname { white-space: normal; }
+.prog { display: block; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.prog span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+@keyframes pendmove { to { stroke-dashoffset: -18; } }
+.pending-line { animation: pendmove .9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .pending-line { animation: none; } }
+
 @media (max-width: 640px) { .brand-logo { width: 54px; } .brand h1 { font-size: 22px; } .brand { margin-bottom: 2px; } }
 
 @media (max-width: 640px) {
@@ -343,7 +354,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     <div class="od">
       <span class="pin pin-o" aria-hidden="true">A</span>
       <div class="od-field">
-        <input type="search" id="tripFrom" placeholder="From: stop or station name" autocomplete="off" aria-label="Origin">
+        <input type="search" id="tripFrom" placeholder="From: place, stop or station" autocomplete="off" aria-label="Origin">
         <ul class="results od-results" id="tripFromResults"></ul>
       </div>
       <button type="button" class="btn small" id="pickFrom" aria-pressed="false" title="Click the map to set the start">Pick on map</button>
@@ -352,7 +363,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     <div class="od">
       <span class="pin pin-d" aria-hidden="true">B</span>
       <div class="od-field">
-        <input type="search" id="tripTo" placeholder="To: stop or station name" autocomplete="off" aria-label="Destination">
+        <input type="search" id="tripTo" placeholder="To: place, stop or station" autocomplete="off" aria-label="Destination">
         <ul class="results od-results" id="tripToResults"></ul>
       </div>
       <button type="button" class="btn small" id="pickTo" aria-pressed="false" title="Click the map to set the destination">Pick on map</button>
@@ -443,7 +454,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   var CENTER = [24.1477, 120.6736];           // Taichung Station area
   var CACHE_KEY = "txg-stations-v3";
   var CACHE_DAYS = 7;
-  var REQUEST_TIMEOUT_MS = 60000;
+  var REQUEST_TIMEOUT_MS = 25000;
   var ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
@@ -468,7 +479,12 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     hsr:  { label: "HSR station",     zh: "高鐵",     css: "--hsr",  letter: "H" }
   };
 
-  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  var cssCache = {};
+  function cssVar(name) {
+    if (!(name in cssCache)) cssCache[name] = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return cssCache[name];
+  }
+  try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { cssCache = {}; }); } catch (e) {}
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   var $ = function (id) { return document.getElementById(id); };
 
@@ -582,10 +598,32 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   }
 
   // ---------- Overpass ----------
-  function overpass(query, label) {
-    var i = 0, reasons = [];
+  var opStats = {};   // host -> { ok, fail, ms }
+  function endpointOrder() {
+    return ENDPOINTS.slice().sort(function (a, b) {
+      function score(u) { var st = opStats[u]; if (!st) return 5000; return (st.ms || 5000) + st.fail * 20000 - st.ok * 200; }
+      return score(a) - score(b);
+    });
+  }
+  var opQueue = [], opActive = 0, OP_MAX = 2;
+  function overpass(query, label, priority) {   // priority: 0 = trip rating (first), 1 = Pleasant search, 2 = map layer
+    return new Promise(function (resolve, reject) {
+      opQueue.push({ q: query, label: label, pr: priority == null ? 2 : priority, res: resolve, rej: reject, t: Date.now() });
+      opQueue.sort(function (a, b) { return a.pr - b.pr || a.t - b.t; });
+      pumpOverpass();
+    });
+  }
+  function pumpOverpass() {
+    while (opActive < OP_MAX && opQueue.length) {
+      var job = opQueue.shift();
+      opActive++;
+      overpassNow(job.q, job.label).then(job.res, job.rej).then(function () { opActive--; pumpOverpass(); });
+    }
+  }
+  function overpassNow(query, label) {
+    var i = 0, reasons = [], order = endpointOrder();
     function attempt() {
-      var url = ENDPOINTS[i];
+      var url = order[i], t0 = Date.now();
       var host = url.split("/")[2];
       var timer = null;
       if (label) setStatus("Loading " + label + " (server " + (i + 1) + " of " + ENDPOINTS.length + ")…");
@@ -602,12 +640,16 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
         })
         .then(function (data) {
           if (data.remark && /error|timed out|runtime/i.test(data.remark) && !(data.elements || []).length) throw new Error("server remark: " + data.remark.slice(0, 80));
+          var st = opStats[url] = opStats[url] || { ok: 0, fail: 0, ms: 0 };
+          st.ok++; st.fail = Math.max(0, st.fail - 1); st.ms = st.ms ? (st.ms * 0.6 + (Date.now() - t0) * 0.4) : Date.now() - t0;
+          if (window.console) console.info("[acTrip] road data from " + host + " in " + (Date.now() - t0) + " ms");
           return data;
         })
         .catch(function (err) {
+          var st = opStats[url] = opStats[url] || { ok: 0, fail: 0, ms: 0 }; st.fail++;
           reasons.push(host + ": " + (err.name === "AbortError" ? "no answer in " + REQUEST_TIMEOUT_MS / 1000 + " s" : (err.message || "network blocked")));
           i++;
-          if (i < ENDPOINTS.length) return attempt();
+          if (i < order.length) return attempt();
           var e = new Error("all servers failed"); e.reasons = reasons; throw e;
         })
         .then(function (v) { if (timer) clearTimeout(timer); return v; }, function (e) { if (timer) clearTimeout(timer); throw e; });
@@ -1426,7 +1468,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       var row = document.createElement("div");
       row.className = "od stop-od";
       row.innerHTML = '<span class="pin pin-s" aria-hidden="true">' + (i + 1) + "</span>" +
-        '<div class="od-field"><input type="search" id="stopIn' + i + '" placeholder="Stop ' + (i + 1) + ': stop or station name" autocomplete="off" aria-label="Stop ' + (i + 1) + '">' +
+        '<div class="od-field"><input type="search" id="stopIn' + i + '" placeholder="Stop ' + (i + 1) + ': place, stop or station" autocomplete="off" aria-label="Stop ' + (i + 1) + '">' +
         '<ul class="results od-results" id="stopRes' + i + '"></ul></div>' +
         '<div class="stop-btns"><button type="button" class="btn small" data-pick-stop="' + i + '" aria-pressed="false">Pick on map</button>' +
         '<button type="button" class="btn small icon-btn" data-remove-stop="' + i + '" title="Remove stop ' + (i + 1) + '" aria-label="Remove stop ' + (i + 1) + '">×</button></div>';
@@ -1489,6 +1531,54 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   });
 
   // Type-ahead for origin and destination
+  // ---------- Place search (Photon, with Nominatim as fallback; both OpenStreetMap-based and free) ----------
+  var placeTurn = {}, placeTimers = {}, placeCache = {}, lastNominatim = 0;
+  var TXG_VIEW = "120.45,23.99,121.46,24.45";   // minLon,minLat,maxLon,maxLat
+  var KIND = { restaurant: "Restaurant", cafe: "Café", school: "School", university: "University", college: "College", hospital: "Hospital",
+    clinic: "Clinic", park: "Park", supermarket: "Supermarket", convenience: "Convenience store", mall: "Mall", department_store: "Department store",
+    marketplace: "Market", museum: "Museum", attraction: "Attraction", temple: "Temple", place_of_worship: "Temple / church", hotel: "Hotel",
+    station: "Station", bus_station: "Bus station", stadium: "Stadium", library: "Library", townhall: "Government office", police: "Police",
+    house: "Address", residential: "Street", primary: "Road", secondary: "Road", tertiary: "Road", city: "City", suburb: "District", neighbourhood: "Neighbourhood" };
+  function kindOf(v) { return KIND[v] || (v ? v.replace(/_/g, " ").replace(/^./, function (c) { return c.toUpperCase(); }) : "Place"); }
+  function fetchJsonQuick(url, ms) {
+    var timer, to = new Promise(function (_, rej) { timer = setTimeout(function () { rej(new Error("timeout")); }, ms); });
+    return Promise.race([fetch(url).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }), to])
+      .then(function (j) { clearTimeout(timer); return j; }, function (e) { clearTimeout(timer); throw e; });
+  }
+  function photon(q) {
+    var url = "https://photon.komoot.io/api/?limit=6&lat=24.15&lon=120.67&bbox=" + TXG_VIEW + "&q=" + encodeURIComponent(q);
+    return fetchJsonQuick(url, 6000).then(function (j) {
+      return (j.features || []).map(function (f) {
+        var p = f.properties || {}, c = f.geometry && f.geometry.coordinates;
+        var name = p.name || [p.street, p.housenumber].filter(Boolean).join(" ");
+        return c && name ? { name: name, lat: c[1], lon: c[0], kind: kindOf(p.osm_value), area: [p.district, p.city].filter(Boolean).join(", ") } : null;
+      }).filter(Boolean);
+    });
+  }
+  function nominatim(q) {
+    var wait = Math.max(0, lastNominatim + 1100 - Date.now());   // at most one request per second (their usage policy)
+    return new Promise(function (res) { setTimeout(res, wait); }).then(function () {
+      lastNominatim = Date.now();
+      var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=tw&bounded=1&accept-language=zh-TW,en&viewbox=" +
+        "120.45,24.45,121.46,23.99&q=" + encodeURIComponent(q);
+      return fetchJsonQuick(url, 8000);
+    }).then(function (j) {
+      return (j || []).map(function (it) {
+        var parts = (it.display_name || "").split(",").map(function (x) { return x.trim(); });
+        return { name: it.name || parts[0], lat: +it.lat, lon: +it.lon, kind: kindOf(it.type), area: parts.slice(1, 3).join(", ") };
+      });
+    });
+  }
+  function searchPlaces(q) {
+    if (placeCache[q]) return Promise.resolve(placeCache[q]);
+    return photon(q).catch(function () { return []; }).then(function (list) {
+      return list.length ? list : nominatim(q).catch(function () { return []; });   // Nominatim is better with Chinese names
+    }).then(function (list) {
+      var seen = {}, out = list.filter(function (pl) { var k = pl.name + "|" + pl.lat.toFixed(4); if (seen[k]) return false; seen[k] = 1; return true; });
+      placeCache[q] = out;
+      return out;
+    });
+  }
   function wireSuggest(inputId, listId, which) {
     var input = $(inputId), ul = $(listId);
     input.addEventListener("input", function () {
@@ -1511,6 +1601,28 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
         });
         li.appendChild(b); ul.appendChild(li);
       });
+      // places (shops, schools, parks, addresses…) from OpenStreetMap, added below the stops
+      var raw = this.value.trim(), myTurn = ++placeTurn[inputId] || (placeTurn[inputId] = 1);
+      clearTimeout(placeTimers[inputId]);
+      if (raw.length < 2) return;
+      var loading = document.createElement("li"); loading.className = "hint place-loading"; loading.textContent = "Searching places…";
+      ul.appendChild(loading);
+      placeTimers[inputId] = setTimeout(function () {
+        searchPlaces(raw).then(function (list) {
+          if (placeTurn[inputId] !== myTurn) return;   // the text changed meanwhile
+          var ld = ul.querySelector(".place-loading"); if (ld) ld.remove();
+          if (!list.length) { if (!ul.children.length) ul.innerHTML = '<li class="hint">No stops or places found. Try another name, or use Pick on map.</li>'; return; }
+          var head = document.createElement("li"); head.className = "place-head"; head.textContent = "Places"; ul.appendChild(head);
+          list.forEach(function (pl) {
+            var li = document.createElement("li"), b = document.createElement("button");
+            b.type = "button";
+            b.innerHTML = '<span class="place-ico" aria-hidden="true"></span><span class="rname">' + esc(pl.name) +
+              (pl.area ? '<small class="place-area">' + esc(pl.area) + "</small>" : "") + '</span><span class="rtype">' + esc(pl.kind) + "</span>";
+            b.addEventListener("click", function () { ul.innerHTML = ""; setTarget(which, L.latLng(pl.lat, pl.lon), pl.name); });
+            li.appendChild(b); ul.appendChild(li);
+          });
+        });
+      }, 350);
     });
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") { e.preventDefault(); var first = ul.querySelector("button"); if (first) first.click(); }
@@ -1690,7 +1802,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
         '<button type="button" class="itin-head" data-i="' + i + '" aria-expanded="' + (i === trip.active) + '">' +
         '<span class="itin-time">' + fmtMin(t.minutes) + "</span>" +
         '<span class="itin-meta">' + (opts.length > 1 ? "Option " + (i + 1) + " · " : "") + parts.join(" · ") + "</span>" +
-        (t.bika ? '<span class="itin-bika" title="Bike route rating">' + (t.redCount ? '<span class="mini-warn" title="' + t.redCount + ' red section' + (t.redCount > 1 ? "s" : "") + '">' + WARN_SVG + "</span>" : "") + bikeRatingHtml(t.bika.score, true) + "</span>" : "") + "</button>";
+        (t.bika && t.bikaState !== "loading" ? '<span class="itin-bika" title="Bike route rating">' + (t.redCount ? '<span class="mini-warn" title="' + t.redCount + ' red section' + (t.redCount > 1 ? "s" : "") + '">' + WARN_SVG + "</span>" : "") + bikeRatingHtml(t.bika.score, true) + "</span>" : "") + "</button>";
       if (i === trip.active) html += legsHtml(t);
       html += "</div>";
     });
@@ -1751,6 +1863,11 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
         "</span>" + '<span class="route-key">On the map: <i style="background:var(--star1)"></i>1★ <i style="background:var(--star3)"></i>3★ <i style="background:var(--star5)"></i>5★ <i class="nd"></i>no data · tap any section to rate it</span>' +
         (t.bikaState === "partial" ? '<div class="hint warn">Some road data couldn\'t load, so part of this ride counts as 2.5★. <button type="button" class="linkbtn" data-retry-rate="1">Try again</button></div>' : "") +
         ((l.bikaSegs && l.bikaSegs.length) || (l.bikaGapCells && Object.keys(l.bikaGapCells).length) ? '<div class="vote-row"><span class="lr-label">Rate this whole ride</span>' + voteButtons('data-vote-leg="' + li + '"', l.routeVote || 0) + "</div>" : "") + "</div>";
+    }
+    if (t.bikaState === "loading" && t.bikaProg && t.bikaProg.total) {
+      return '<div class="leg-rating loading-rating"><span class="lr-label">Rating section by section · ' + t.bikaProg.done + " of " + t.bikaProg.total + " parts</span>" +
+        '<span class="prog"><span style="width:' + Math.round(100 * t.bikaProg.done / t.bikaProg.total) + '%"></span></span>' +
+        (l.bika ? bikeRatingHtml(l.bika.score) + '<span class="hint">So far, on the ' + Math.round(100 * (t.bikaProg.done / t.bikaProg.total)) + "% of the route already scored. Grey dots on the map are still loading.</span>" : "") + "</div>";
     }
     if (t.bikaState === "loading" || (!t.bikaState && t.roadState === "loading")) return '<div class="hint">Rating this bike route…</div>';
     if (t.bikaState) return '<div class="hint">No rating available for this ride.</div>';
@@ -1886,7 +2003,8 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     var r = trip.result; if (!r) return;
     var t = modeTrips(trip.mode)[trip.active];
     var bounds = L.latLngBounds([[trip.from.lat, trip.from.lng], [trip.to.lat, trip.to.lng]]);
-    if (!t) { map.fitBounds(bounds, { padding: [50, 50] }); return; }
+    var fit = !trip.noFit; trip.noFit = false;
+    if (!t) { if (fit) map.fitBounds(bounds, { padding: [50, 50] }); return; }
     var busColors = [cssVar("--bus"), cssVar("--route2"), cssVar("--hsr")], busN = 0, prev = [trip.from.lat, trip.from.lng];
     function endpoint(ll, name, col) {
       L.circleMarker(ll, { radius: 7, weight: 2.5, color: col, fillColor: cssVar("--panel"), fillOpacity: 1 })
@@ -1910,6 +2028,10 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
           // route coloured by road score: dark casing underneath, then each stretch in its bikability colour
           L.polyline(bl, { color: cssVar("--fg"), weight: 9, opacity: .35, interactive: false }).addTo(tripLayer);
           l.bikaPieces.forEach(function (pc) {
+            if (pc.pend) {   // not scored yet: grey, filled in as the road data arrives
+              L.polyline(pc.ll, { color: cssVar("--muted"), weight: 5, opacity: .55, dashArray: "2 7", lineCap: "round", interactive: false, className: "pending-line" }).addTo(tripLayer);
+              return;
+            }
             if (pc.conn) {   // a few metres between the YouBike station and the road: not rated
               L.polyline(pc.ll, { color: cssVar("--muted"), weight: 3, opacity: .9, dashArray: "2 5", interactive: false }).addTo(tripLayer);
               return;
@@ -1928,7 +2050,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
             seg.addTo(tripLayer);
           });
         } else {
-          L.polyline(bl, { color: col, weight: 6, opacity: .95, dashArray: l.road ? null : "10 8", interactive: false }).addTo(tripLayer);
+          L.polyline(bl, { color: cssVar("--muted"), weight: 5, opacity: .6, dashArray: "2 7", lineCap: "round", interactive: false, className: "pending-line" }).addTo(tripLayer);
         }
         bl.forEach(function (pt) { bounds.extend(pt); });
         endpoint(p1, dockName(l.d1), col); endpoint(p2, dockName(l.d2), col);
@@ -1948,7 +2070,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
         prev = ll[ll.length - 1];
       }
     });
-    map.fitBounds(bounds, { padding: [50, 50] });
+    if (fit) map.fitBounds(bounds, { padding: [50, 50] });
   }
 
 
@@ -2429,14 +2551,16 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   function drawSegments(list) {
     var z = map.getZoom();
     list.forEach(function (sg) { sg.id = ++segSeq; segById[sg.id] = sg; sg.score = feedbackScore(sg); });
-    list.forEach(function (sg) {
-      var line = L.polyline(sg.ll, { color: cssVar(starColorVar(sg.score)), weight: bikaWeight(z), opacity: .9, lineCap: "round" });
-      line.bindPopup(function () { return segPopup(sg); });
-      sg.line = line;
-      bikaLayer.addLayer(line);
-    });
-    bikaSegments = bikaSegments.concat(list);
+    if ($("lyr-bika").checked) list.forEach(function (sg) { makeSegLine(sg, z); });   // otherwise built when the layer is turned on
+    Array.prototype.push.apply(bikaSegments, list);
     list.forEach(indexSegment);
+  }
+  function makeSegLine(sg, z) {
+    if (sg.line) return;
+    var line = L.polyline(sg.ll, { color: cssVar(starColorVar(sg.score)), weight: bikaWeight(z), opacity: .9, lineCap: "round" });
+    line.bindPopup(function () { return segPopup(sg); });
+    sg.line = line;
+    bikaLayer.addLayer(line);
   }
   var segGrid = {}, SEG_G = 0.0005;   // ~55 m grid of segment edges
   function indexSegment(sg) {
@@ -2491,7 +2615,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     if (bikaCellP[key]) return bikaCellP[key];
     bikaCells[key] = "loading";
     var cd = BIKA.cellDeg, box = [c[0] * cd, c[1] * cd, (c[0] + 1) * cd, (c[1] + 1) * cd].map(function (v) { return +v.toFixed(5); });
-    var pr = overpass(cellQuery(box)).then(function (data) {
+    var pr = overpass(cellQuery(box), null, 2).then(function (data) {
       var segs = scoreCell(data, box);
       drawSegments(segs);
       cacheSegs(segs); markSquare(box);
@@ -2527,11 +2651,12 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   map.on("moveend", function () { clearTimeout(bikaTimer); bikaTimer = setTimeout(loadBikaView, 400); });
   map.on("zoomend", function () {
     var w = bikaWeight(map.getZoom());
-    bikaSegments.forEach(function (sg) { sg.line.setStyle({ weight: w }); });
+    bikaSegments.forEach(function (sg) { if (sg.line) sg.line.setStyle({ weight: w }); });
   });
   $("lyr-bika").addEventListener("change", function () {
     $("bikaLegend").hidden = !this.checked;
     if (this.checked) {
+      var z0 = map.getZoom(); bikaSegments.forEach(function (sg) { makeSegLine(sg, z0); });
       if (map.getZoom() < BIKA.minZoom) map.setZoom(BIKA.minZoom);
       loadBikaView();
     } else {
@@ -2572,7 +2697,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       'way["natural"~"^(wood|grassland|scrub)$"]' + aroundG + ';);out geom;';
     var lats = pts.map(function (c) { return c[0]; }), lons = pts.map(function (c) { return c[1]; });
     var box = [Math.min.apply(null, lats), Math.min.apply(null, lons), Math.max.apply(null, lats), Math.max.apply(null, lons)];
-    var pr = overpass(q).then(function (data) {
+    var pr = overpass(q, null, radiusM > 100 ? 1 : 0).then(function (data) {
       var segs = scoreCell(data, box);
       drawSegments(segs);
       cacheSegs(segs);
@@ -2627,7 +2752,13 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     var byWay = {};
     list.forEach(function (sg) { if (sg.wayId != null && (refresh || !sg.cached)) (byWay[sg.wayId] = byWay[sg.wayId] || []).push(sg); });
     Object.keys(byWay).forEach(function (w) { segStore.ways["w" + w] = byWay[w].map(packSeg); byWay[w].forEach(function (sg) { sg.cached = true; }); });
-    clearTimeout(persistTimer); persistTimer = setTimeout(persistStore, 300);
+    schedulePersist();
+  }
+  function schedulePersist() {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(function () {
+      if (window.requestIdleCallback) requestIdleCallback(persistStore, { timeout: 4000 }); else persistStore();
+    }, 2500);
   }
   function covCell(lat, lon) { return Math.floor(lat / SCACHE.cell) + ":" + Math.floor(lon / SCACHE.cell); }
   function samplesAlong(line, stepM) {
@@ -2640,7 +2771,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   }
   function markCovered(line, layer) {
     samplesAlong(line, 10).forEach(function (p) { covStore[layer][covCell(p[0], p[1])] = 1; });
-    clearTimeout(persistTimer); persistTimer = setTimeout(persistStore, 300);
+    schedulePersist();
   }
   function markSquare(box) {   // a whole map-layer square was loaded
     for (var y = Math.floor(box[0] / SCACHE.cell); y < Math.ceil(box[2] / SCACHE.cell); y++)
@@ -2656,6 +2787,35 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     });
     if (miss / Math.max(1, pts.length) > 0.6 || runs.length > 5) return [line];   // mostly new: load the whole route in one go
     return runs.map(function (r) { return r.length > 1 ? r : [r[0], r[0]]; });
+  }
+  // Like loadRoute, but splits new stretches into ~1.2 km parts loaded two at a time, in order along the route,
+  // and reports after each part so the map can colour the route section by section.
+  function chunkLine(line, maxM) {
+    var out = [], cur = [line[0]], acc = 0;
+    for (var i = 1; i < line.length; i++) {
+      acc += Math.hypot((line[i][0] - line[i - 1][0]) * 110540, (line[i][1] - line[i - 1][1]) * 101700);
+      cur.push(line[i]);
+      if (acc >= maxM && i < line.length - 1) { out.push(cur); cur = [line[i]]; acc = 0; }
+    }
+    if (cur.length > 1) out.push(cur);
+    return out;
+  }
+  function loadRouteProgressive(line, radius, layer, onPart) {
+    var runs = uncoveredRuns(line, layer);
+    if (!runs.length) return Promise.resolve({ cached: true, failed: 0, parts: 0 });
+    var parts = [];
+    runs.forEach(function (r) { (pathLen(r) > 3000 ? chunkLine(r, 2000) : [r]).forEach(function (c) { parts.push(c); }); });
+    var i = 0, failed = 0, done = 0;
+    onPart(0, parts.length);
+    function next() {
+      if (i >= parts.length) return Promise.resolve();
+      var c = parts[i++];
+      return loadCorridor(c, radius).catch(function () {
+        return new Promise(function (res) { setTimeout(res, 2500); }).then(function () { return loadCorridor(c, radius); });
+      }).then(function () { markCovered(c, layer); }, function () { failed++; })
+        .then(function () { done++; onPart(done, parts.length); return next(); });
+    }
+    return Promise.all([next(), next()]).then(function () { return { cached: false, failed: failed, parts: parts.length }; });
   }
   function loadRoute(line, radius, layer) {
     var runs = uncoveredRuns(line, layer);
@@ -2731,7 +2891,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       satPending--;
       var changed = segs.some(function (sg) { return sg.green && !sg.parkGreen; });
       cacheSegs(segs, true);
-      if (changed || !satPending) { clearTimeout(scoreTimer); scoreTimer = setTimeout(onScoresChanged, 250); }
+      if (changed || !satPending) { clearTimeout(scoreTimer); scoreTimer = setTimeout(onScoresChanged, satPending ? 1500 : 400); }
     });
   }
   // Road scores changed (greenery arrived): re-rate the trips on screen and re-check the Pleasant route
@@ -2739,7 +2899,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     var r = trip.result; if (!r) return;
     [r.bike, r.pleasant].concat(modeTrips(trip.mode)).forEach(function (t) { if (t && t.bika) computeTripRating(t); });
     if (r.bike && r.bike.bika && r.pleasantState) decidePleasant(r);
-    renderTrips();
+    trip.noFit = true; renderTrips();
   }
 
   // ---------- Bike route rating: distance-weighted average of road scores along the bike path ----------
@@ -2768,7 +2928,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     var up = v.vote > 0 ? 1 : 0, down = v.vote < 0 ? 1 : 0;
     return (FB.priorWeight * RATE.unknownScore + FB.upScore * up + FB.downScore * down) / (FB.priorWeight + up + down);
   }
-  function ratePath(line) {
+  function ratePath(line, pendingMode) {
     var kx = Math.cos(line[0][0] * Math.PI / 180) * 111320, ky = 110540, S = [];
     function P(c) { return [c[1] * kx, c[0] * ky]; }
     for (var i = 1; i < line.length; i++) {
@@ -2788,16 +2948,17 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
           bestD = dd; best = cand[j][2];
         }
         var f0 = k / n, f1 = (k + 1) / n;
-        S.push({ sg: best, step: step, lat: lat, lon: lon,
+        var pend = !best && pendingMode && !covStore.c[covCell(lat, lon)];   // this place is still being loaded
+        S.push({ sg: best, pend: pend, step: step, lat: lat, lon: lon,
           a: [line[i - 1][0] + (line[i][0] - line[i - 1][0]) * f0, line[i - 1][1] + (line[i][1] - line[i - 1][1]) * f0],
           b: [line[i - 1][0] + (line[i][0] - line[i - 1][0]) * f1, line[i - 1][1] + (line[i][1] - line[i - 1][1]) * f1] });
       }
     }
     // runs of unmatched samples: fill short interior gaps, mark short ends as station connectors
     for (var x = 0; x < S.length;) {
-      if (S[x].sg) { x++; continue; }
+      if (S[x].sg || S[x].pend) { x++; continue; }
       var y = x, len = 0;
-      while (y < S.length && !S[y].sg) { len += S[y].step; y++; }
+      while (y < S.length && !S[y].sg && !S[y].pend) { len += S[y].step; y++; }
       var before = x > 0 ? S[x - 1].sg : null, after = y < S.length ? S[y].sg : null;
       if (before && after && len <= GAP.fillM) {
         for (var q = x; q < y; q++) S[q].sg = (q - x) < (y - x) / 2 ? before : after;
@@ -2809,7 +2970,8 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     var total = 0, matched = 0, sum = 0, good = 0, gapSum = 0, used = {}, gapCells = {}, pieces = [], cur = null;
     S.forEach(function (sm) {
       var key, sc = null, gk = null;
-      if (sm.conn) key = "conn";
+      if (sm.pend) key = "pend";
+      else if (sm.conn) key = "conn";
       else if (sm.sg) {
         key = "s" + sm.sg.id; sc = sm.sg.score;
         total += sm.step; matched += sm.step; sum += sc * sm.step; if (sc >= 4) good += sm.step;
@@ -2820,9 +2982,9 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       }
       if (cur && cur.key === key) { cur.ll.push(sm.b); if (gk) { cur.cells[gk] = 1; cur.sum += sc * sm.step; cur.len += sm.step; } }
       else {
-        cur = { key: key, sg: sm.sg && !sm.conn ? sm.sg : null, ll: [sm.a, sm.b], gap: key === "gap", conn: key === "conn", cells: {}, sum: 0, len: 0 };
+        cur = { key: key, sg: sm.sg && !sm.conn && !sm.pend ? sm.sg : null, ll: [sm.a, sm.b], gap: key === "gap", conn: key === "conn", pend: key === "pend", cells: {}, sum: 0, len: 0 };
         if (gk) { cur.cells[gk] = 1; cur.sum = sc * sm.step; cur.len = sm.step; }
-        cur.score = key === "conn" ? null : sc;
+        cur.score = key === "conn" || key === "pend" ? null : sc;
         pieces.push(cur);
       }
     });
@@ -2835,16 +2997,30 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     var legs = t.legs.filter(function (l) { return l.t === "bike"; });
     if (!legs.length || t.bikaState) return;
     t.bikaState = "loading";
-    var failed = 0, fetched = 0;
-    Promise.all(legs.map(function (l) {
+    var tStart = Date.now();
+    var failed = 0, fetched = 0, prog = legs.map(function () { return [0, 0]; });
+    t.bikaProg = { done: 0, total: 0 };
+    computeTripRating(t);   // roads already saved are coloured straight away
+    progressRender(t);
+    Promise.all(legs.map(function (l, li) {
       if (t.roadsLoaded) return Promise.resolve();   // e.g. the Pleasant route: its roads came with the search band
-      return loadRoute(bikePathOf(l), 30, "c").then(function (res) { failed += res.failed; if (!res.cached) fetched++; });
+      return loadRouteProgressive(bikePathOf(l), 30, "c", function (done, total) {
+        prog[li] = [done, total];
+        t.bikaProg = { done: prog.reduce(function (a, x) { return a + x[0]; }, 0), total: prog.reduce(function (a, x) { return a + x[1]; }, 0) };
+        if (done) { computeTripRating(t); progressRender(t); }
+      }).then(function (res) { failed += res.failed; if (!res.cached) fetched++; });
     })).then(function () {
       t.bikaFromCache = !fetched;
-      computeTripRating(t);
       t.bikaState = failed ? "partial" : "done";
-      if (trip.result) renderTrips();
+      t.bikaMs = Date.now() - tStart;
+      if (window.console) console.info("[acTrip] bike route rated in " + t.bikaMs + " ms" + (fetched ? "" : " (saved scores)"));
+      computeTripRating(t);
+      if (trip.result) { trip.noFit = true; renderTrips(); }
     });
+  }
+  function progressRender(t) {   // redraw only if this trip is the one on screen, without moving the map
+    if (!trip.result || modeTrips(trip.mode)[trip.active] !== t) return;
+    trip.noFit = true; renderTrips();
   }
   // (Re)compute a trip's rating from the road scores in memory; also used right after a vote
   function computeTripRating(t) {
@@ -2856,7 +3032,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
         return { score: (r.sum + r.gapSum) / r.total, coverage: r.matched / r.total, good: r.good / r.total };
       }
       legs.forEach(function (l) {
-        var r = ratePath(bikePathOf(l));
+        var r = ratePath(bikePathOf(l), t.bikaState === "loading");
         l.bika = summary(r);
         l.bikaPieces = r.pieces;
         l.bikaSegs = r.segs;
@@ -2873,7 +3049,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   function rerateShown() {   // after a vote: update the trip on screen immediately
     if (!trip.result) return;
     var t = modeTrips(trip.mode)[trip.active];
-    if (t && t.bika) { computeTripRating(t); renderTrips(); }
+    if (t && t.bika) { computeTripRating(t); trip.noFit = true; renderTrips(); }
   }
   var BIKE_SVG = '<svg viewBox="0 0 24 16" aria-hidden="true"><circle cx="5" cy="11" r="4"/><circle cx="19" cy="11" r="4"/>' +
     '<path d="M5 11 9.5 4H15l4 7M9.5 4 12 11l3-7M7.5 2.5h3.5M15 4l-.8-2h2"/></svg>';
@@ -2989,7 +3165,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   function constrainedShortest(G, src, dst, target, maxLen) {
     var n = G.coords.length, dc = G.coords[dst], kx = Math.cos(dc[0] * Math.PI / 180) * 111320, ky = 110540;
     function h(i) { var c = G.coords[i]; return Math.hypot((c[1] - dc[1]) * kx, (c[0] - dc[0]) * ky); }
-    var labels = new Array(n), heap = [], pops = 0, MAX_PER_NODE = 24, MAX_POPS = 250000;
+    var labels = new Array(n), heap = [], pops = 0, MAX_PER_NODE = 12, MAX_POPS = 60000, deadline = Date.now() + 350;
     function push(L) {
       heap.push(L);
       for (var i = heap.length - 1; i > 0;) { var p = (i - 1) >> 1; if (heap[p].f <= heap[i].f) break; var t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; }
@@ -3018,7 +3194,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     }
     var start = { node: src, len: 0, sur: 0, f: h(src), parent: null, edge: null };
     addLabel(start); push(start);
-    while (heap.length && pops++ < MAX_POPS) {
+    while (heap.length && pops++ < MAX_POPS && (pops & 255 || Date.now() < deadline)) {
       var L = pop();
       if (L.dead) continue;
       if (L.node === dst && L.sur >= 0 && L.len > 0) {
@@ -3057,7 +3233,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   function decidePleasant(r) {
     if (shortestIsPleasant(r)) { r.pleasant = null; r.pleasantState = { phase: "notneeded" }; return; }
     if (!r.pleasantState || r.pleasantState.phase === "notneeded") { r.pleasantState = null; findPleasant(r); return; }
-    if (r.plCtx && r.pleasantState.phase !== "loading") computePleasant(r);   // scores changed: search again (no download)
+    if (r.plCtx && r.pleasantState.phase !== "loading" && !satPending) computePleasant(r);   // scores settled: search again (no download)
   }
   function findPleasant(r) {
     var base = r.bike;
@@ -3095,6 +3271,10 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       if (shortest.avg >= PLEASANT.target) pick = shortest;
       // exact search first; detours up to 2.5× the shortest (or +1.5 km) are considered
       if (!pick) pick = constrainedShortest(G, sa.id, sb.id, PLEASANT.target, Math.max(shortest.len * 2.5, shortest.len + 1500));
+      if (!pick) for (var k = 1; k < PLEASANT.penalties.length && !pick; k++) {   // fast fallback: shortest penalised route that qualifies
+        var pp = cheapestPath(G, sa.id, sb.id, PLEASANT.penalties[k]);
+        if (pp && pp.avg >= PLEASANT.target) pick = pp;
+      }
       // both conditions are required: no red section AND an average of 3.5★ or better
       if (!pick) {
         r.pleasant = null;
