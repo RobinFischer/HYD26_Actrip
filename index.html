@@ -3,58 +3,83 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Actrip | Active Mobility Navigation</title>
+    <title>acTrip | Bike-friendly trips in Taichung</title>
     <meta
       name="description"
-      content="Actrip is a navigation app that promotes active modes of transport like biking by showing road condition and obstacles during navigation."
+      content="acTrip is a trip planner for Taichung that combines bus, MRT, YouBike and walking, and rates every bike route with a bikability score."
     />
+    <link rel="icon" type="image/webp" href="./images/actrip-logo.webp" />
     <style>
       :root {
-        --bg: #f4f9f5;
-        --panel: rgba(255, 255, 255, 0.8);
-        --panel-strong: #ffffff;
-        --text: #1f2d2b;
-        --muted: #51615d;
-        --primary: #2f8f72;
-        --primary-strong: #1f6b56;
-        --accent: #f8b84e;
-        --accent-soft: #fff4d7;
-        --line: rgba(31, 45, 43, 0.1);
-        --success: #26a96c;
-        --shadow: 0 22px 60px rgba(34, 61, 55, 0.14);
+        --bg: #f4f9f6;
+        --bg-2: #ebf5f0;
+        --panel: rgba(255, 255, 255, 0.78);
+        --text: #1d2b29;
+        --muted: #52625e;
+        --line: rgba(29, 43, 41, 0.1);
+        --teal: #1b8ea6;
+        --green: #4caf3c;
+        --primary: #1b8ea6;
+        --primary-strong: #13697b;
+        --logo-bg: transparent;
+        --star1: #c92a2a;
+        --star2: #f08c00;
+        --star3: #e8c400;
+        --star4: #74b816;
+        --star5: #2b8a3e;
+        --nodata: #e0b400;
+        --shadow: 0 22px 60px rgba(28, 70, 66, 0.12);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #121a19;
+          --bg-2: #0e1514;
+          --panel: rgba(30, 41, 39, 0.82);
+          --text: #e6eeec;
+          --muted: #a2b2ae;
+          --line: rgba(230, 238, 236, 0.12);
+          --teal: #4cc3d9;
+          --green: #7fd36a;
+          --primary: #2aa3bb;
+          --primary-strong: #4cc3d9;
+          --logo-bg: #eef5f0;
+          --star1: #ff6b6b;
+          --nodata: #ffd43b;
+          --shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+        }
       }
 
       * { box-sizing: border-box; }
 
-      html {
-        scroll-behavior: smooth;
-      }
+      html { scroll-behavior: smooth; }
 
       body {
         margin: 0;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         background:
-          radial-gradient(circle at top left, rgba(124, 190, 168, 0.23), transparent 30%),
-          linear-gradient(180deg, #f8fcf9 0%, #edf7f2 100%);
+          radial-gradient(circle at top left, color-mix(in srgb, var(--teal) 16%, transparent), transparent 34%),
+          linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+        background-color: var(--bg);
         color: var(--text);
+        line-height: 1.6;
       }
 
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
+      a { color: inherit; text-decoration: none; }
+      p a, li a { color: var(--primary-strong); text-decoration: underline; text-underline-offset: 2px; }
 
       .container {
-        width: min(1180px, calc(100% - 32px));
+        width: min(1080px, calc(100% - 32px));
         margin: 0 auto;
       }
 
+      /* ---------- Header ---------- */
       header {
         position: sticky;
         top: 0;
         z-index: 10;
         backdrop-filter: blur(16px);
-        background: rgba(248, 252, 249, 0.72);
+        background: color-mix(in srgb, var(--bg) 78%, transparent);
         border-bottom: 1px solid var(--line);
       }
 
@@ -62,93 +87,94 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        min-height: 76px;
+        gap: 16px;
+        min-height: 72px;
       }
 
       .brand {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
-        font-weight: 800;
-        letter-spacing: 0.02em;
+        gap: 10px;
       }
 
-      .logo {
-        width: 42px;
-        height: 42px;
-        display: grid;
-        place-items: center;
-        border-radius: 14px;
-        background: linear-gradient(135deg, var(--primary) 0%, #88d4a9 100%);
-        color: white;
-        box-shadow: 0 12px 24px rgba(47, 143, 114, 0.22);
-        font-size: 1.1rem;
+      .brand img {
+        width: 46px;
+        height: auto;
+        border-radius: 50%;
+        background: var(--logo-bg);
       }
+
+      .wordmark {
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .wordmark .ac { color: var(--teal); }
+      .wordmark .trip { color: var(--green); }
 
       .nav-links {
         display: flex;
-        gap: 28px;
+        gap: 26px;
         align-items: center;
         color: var(--muted);
         font-weight: 600;
       }
+      .nav-links a:hover { color: var(--text); }
 
       .nav-cta {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 12px 20px;
+        padding: 11px 20px;
         border-radius: 999px;
         background: var(--primary);
-        color: white;
+        color: #fff;
         font-weight: 700;
-        box-shadow: 0 14px 28px rgba(31, 107, 86, 0.22);
+        white-space: nowrap;
       }
 
-      .hero {
-        padding: 72px 0 42px;
-      }
+      /* ---------- Hero ---------- */
+      .hero { padding: 64px 0 40px; }
 
       .hero-inner {
         display: grid;
-        grid-template-columns: 1.1fr 0.9fr;
-        gap: 36px;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 40px;
         align-items: center;
       }
 
       .eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 14px;
-        background: rgba(47, 143, 114, 0.1);
-        border: 1px solid rgba(47, 143, 114, 0.18);
+        display: inline-block;
+        padding: 7px 14px;
+        background: color-mix(in srgb, var(--teal) 12%, transparent);
+        border: 1px solid color-mix(in srgb, var(--teal) 25%, transparent);
         border-radius: 999px;
         color: var(--primary-strong);
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
 
       h1 {
-        margin: 22px 0 18px;
-        font-size: clamp(2.8rem, 4vw, 5rem);
-        line-height: 1.02;
-        letter-spacing: -0.06em;
+        margin: 20px 0 16px;
+        font-size: clamp(2.4rem, 4.4vw, 4.2rem);
+        line-height: 1.05;
+        letter-spacing: -0.04em;
       }
 
       .lead {
-        max-width: 620px;
+        max-width: 600px;
         font-size: 1.1rem;
-        line-height: 1.7;
         color: var(--muted);
+        margin: 0;
       }
 
       .cta-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 16px;
+        gap: 14px;
         margin-top: 28px;
       }
 
@@ -157,361 +183,245 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 54px;
+        gap: 8px;
+        min-height: 52px;
         padding: 0 22px;
-        border-radius: 16px;
+        border-radius: 14px;
         font-weight: 700;
         font-size: 1rem;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform 0.2s ease;
       }
 
       .button-primary {
-        background: linear-gradient(135deg, var(--primary) 0%, #3fa77d 100%);
-        color: white;
-        box-shadow: 0 18px 32px rgba(47, 143, 114, 0.25);
+        background: linear-gradient(135deg, var(--teal) 0%, var(--green) 100%);
+        color: #fff;
+        box-shadow: 0 16px 30px color-mix(in srgb, var(--teal) 28%, transparent);
       }
 
       .button-secondary {
-        background: rgba(255, 255, 255, 0.7);
+        background: var(--panel);
         color: var(--text);
         border: 1px solid var(--line);
       }
 
+      .button-secondary svg { width: 20px; height: 20px; fill: currentColor; }
+
       .button-primary:hover,
       .button-secondary:hover,
-      .nav-cta:hover {
-        transform: translateY(-1px);
-      }
+      .nav-cta:hover { transform: translateY(-1px); }
 
-      .stats {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 26px;
-        margin-top: 30px;
-      }
-
-      .stat {
-        min-width: 120px;
-      }
-
-      .stat strong {
-        display: block;
-        font-size: 1.8rem;
-        letter-spacing: -0.06em;
-      }
-
-      .stat span {
-        color: var(--muted);
-        font-weight: 600;
-      }
-
-      .mockup {
-        position: relative;
-        border-radius: 32px;
-        padding: 20px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.74), rgba(233,245,238,0.9));
-        border: 1px solid rgba(142, 175, 162, 0.26);
+      .hero-logo {
+        justify-self: center;
+        width: min(380px, 100%);
+        padding: 22px;
+        border-radius: 50%;
+        background: var(--panel);
+        border: 1px solid var(--line);
         box-shadow: var(--shadow);
       }
-
-      .map-shell {
-        background:
-          linear-gradient(135deg, rgba(112, 164, 134, 0.18), rgba(194, 236, 205, 0.12)),
-          linear-gradient(180deg, rgba(255,255,255,0.7), rgba(245,249,247,0.9));
-        border-radius: 24px;
-        min-height: 520px;
-        border: 1px solid rgba(118, 146, 134, 0.2);
-        position: relative;
-        overflow: hidden;
-      }
-
-      .map-grid {
-        position: absolute;
-        inset: 0;
-        background-image:
-          linear-gradient(rgba(31,45,43,0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(31,45,43,0.05) 1px, transparent 1px);
-        background-size: 42px 42px;
-      }
-
-      .road {
-        position: absolute;
-        border-radius: 999px;
-        background: linear-gradient(90deg, rgba(255,255,255,0.7), rgba(226,236,229,0.9));
-        border: 1px solid rgba(155, 170, 161, 0.4);
-      }
-
-      .road.r1 {
-        width: 72%;
-        height: 18px;
-        left: 6%;
-        top: 34%;
-        transform: rotate(-8deg);
-      }
-
-      .road.r2 {
-        width: 68%;
-        height: 18px;
-        right: 7%;
-        top: 46%;
-        transform: rotate(9deg);
-      }
-
-      .road.r3 {
-        width: 50%;
-        height: 18px;
-        left: 16%;
-        top: 63%;
-        transform: rotate(-12deg);
-      }
-
-      .route {
-        position: absolute;
-        left: 18%;
-        top: 35%;
-        width: 60%;
-        height: 14px;
-        border-radius: 999px;
-        background: linear-gradient(90deg, #2dbf88, #7dd8a7);
-        box-shadow: 0 0 0 6px rgba(45, 191, 136, 0.18);
-        transform: rotate(-10deg);
-      }
-
-      .route::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: repeating-linear-gradient(
-          90deg,
-          rgba(255,255,255,0.4) 0 18px,
-          transparent 18px 32px
-        );
-      }
-
-      .pin {
-        position: absolute;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 4px solid rgba(255,255,255,0.9);
-        box-shadow: 0 6px 16px rgba(30, 76, 58, 0.2);
-      }
-
-      .pin.start {
-        left: 22%;
-        top: 30%;
-        background: var(--success);
-      }
-
-      .pin.end {
-        right: 17%;
-        top: 58%;
-        background: #0c7ae6;
-      }
-
-      .alert {
-        position: absolute;
-        right: 26px;
-        top: 22px;
-        width: 210px;
-        border-radius: 18px;
-        background: rgba(255,255,255,0.82);
-        border: 1px solid rgba(125, 145, 136, 0.3);
-        box-shadow: 0 18px 30px rgba(31, 45, 43, 0.14);
-        padding: 14px 15px;
-      }
-
-      .alert-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #855a00;
-      }
-
-      .alert-tag::before {
-        content: "!";
-        display: inline-grid;
-        place-items: center;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: #f8d27a;
-        color: #4a2d00;
-      }
-
-      .alert strong {
+      .hero-logo img {
         display: block;
-        margin-top: 10px;
-        font-size: 1.05rem;
-      }
-
-      .alert small {
-        display: block;
-        margin-top: 5px;
-        color: var(--muted);
-        line-height: 1.5;
-      }
-
-      .status-badges {
-        position: absolute;
-        left: 26px;
-        bottom: 26px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        max-width: 240px;
-      }
-
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: rgba(255,255,255,0.8);
-        border: 1px solid rgba(31,45,43,0.08);
-        border-radius: 999px;
-        font-size: 0.82rem;
-        color: var(--muted);
-        font-weight: 700;
-      }
-
-      .badge::before {
-        content: "";
-        width: 9px;
-        height: 9px;
+        width: 100%;
+        height: auto;
         border-radius: 50%;
-        background: var(--primary);
+        background: var(--logo-bg);
       }
 
-      .badge.warning::before {
-        background: #f5b84b;
-      }
-
-      .badge.alert::before {
-        background: #ee7a5a;
-      }
-
-      .features {
-        padding: 48px 0 96px;
-      }
+      /* ---------- Sections ---------- */
+      section.block { padding: 56px 0; }
 
       .section-heading {
-        text-align: center;
-        max-width: 740px;
-        margin: 0 auto 28px;
+        max-width: 720px;
+        margin: 0 0 28px;
       }
 
       .section-heading h2 {
-        margin: 0 0 12px;
-        font-size: clamp(2rem, 4vw, 3rem);
-        letter-spacing: -0.06em;
+        margin: 0 0 10px;
+        font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+        letter-spacing: -0.03em;
+        line-height: 1.15;
       }
 
       .section-heading p {
+        margin: 0;
         font-size: 1.05rem;
-        line-height: 1.7;
         color: var(--muted);
       }
 
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 24px 22px;
+      }
+
+      h3 { margin: 0 0 8px; font-size: 1.2rem; }
+      .card p { margin: 0; color: var(--muted); }
+
+      /* Features */
       .feature-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 22px;
+        gap: 18px;
       }
 
-      .feature-card {
-        background: rgba(255,255,255,0.72);
-        border: 1px solid var(--line);
-        border-radius: 24px;
-        padding: 26px 22px;
-        box-shadow: 0 18px 32px rgba(36, 63, 53, 0.06);
+      /* Steps */
+      .steps {
+        list-style: none;
+        counter-reset: step;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 14px;
       }
 
-      .icon {
-        width: 54px;
-        height: 54px;
+      .steps > li {
+        counter-increment: step;
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .steps > li::before {
+        content: counter(step);
         display: grid;
         place-items: center;
-        border-radius: 16px;
-        background: linear-gradient(135deg, rgba(47,143,114,0.12), rgba(52,166,117,0.22));
-        font-size: 1.5rem;
-        margin-bottom: 18px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--teal), var(--green));
+        color: #fff;
+        font-weight: 800;
+        font-size: 1.1rem;
       }
 
-      h3 {
-        margin: 0 0 10px;
-        font-size: 1.35rem;
+      .steps .card p + p,
+      .steps .card ul { margin-top: 8px; }
+      .steps .card ul { padding-left: 20px; color: var(--muted); margin-bottom: 0; }
+      .steps .card li { margin: 3px 0; }
+
+      .kbd {
+        display: inline-block;
+        padding: 1px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--text) 5%, transparent);
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
       }
 
-      .feature-card p {
-        margin: 0;
+      /* Bikability */
+      .bika-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      .scale {
+        list-style: none;
+        padding: 0;
+        margin: 14px 0 0;
+        display: grid;
+        gap: 8px;
+      }
+      .scale li {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        gap: 12px;
+        align-items: center;
         color: var(--muted);
-        line-height: 1.7;
+      }
+      .scale .sw {
+        height: 10px;
+        border-radius: 999px;
+      }
+      .scale strong { color: var(--text); margin-right: 6px; }
+      .scale .nd {
+        background: repeating-linear-gradient(90deg, var(--nodata) 0 8px, transparent 8px 13px);
+      }
+
+      .card ul.plain {
+        margin: 12px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      .card ul.plain li { margin: 6px 0; }
+      .card ul.plain strong { color: var(--text); }
+
+      .warn-tri {
+        display: inline-block;
+        width: 16px;
+        height: 14px;
+        vertical-align: -2px;
+      }
+
+      .note {
+        margin-top: 18px;
+        padding: 14px 18px;
+        border-left: 4px solid var(--teal);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--teal) 8%, transparent);
+        color: var(--muted);
+      }
+      .note strong { color: var(--text); }
+
+      /* Code */
+      .code-card {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      .code-card code {
+        font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+        font-size: 0.95rem;
+        word-break: break-all;
       }
 
       footer {
-        padding: 24px 0 54px;
+        padding: 28px 0 48px;
         text-align: center;
         color: var(--muted);
+        font-size: 0.95rem;
       }
 
       @media (max-width: 900px) {
-        .nav-links {
-          display: none;
-        }
-
-        .hero-inner {
-          grid-template-columns: 1fr;
-        }
-
-        .feature-grid {
-          grid-template-columns: 1fr;
-        }
+        .nav-links { display: none; }
+        .hero-inner { grid-template-columns: 1fr; }
+        .hero-logo { order: -1; width: min(260px, 70%); }
+        .feature-grid,
+        .bika-grid { grid-template-columns: 1fr; }
       }
 
       @media (max-width: 560px) {
-        .nav {
-          min-height: 68px;
-        }
-
-        .cta-row {
-          flex-direction: column;
-        }
-
+        .hero { padding-top: 36px; }
+        .cta-row { flex-direction: column; }
         .button-primary,
-        .button-secondary {
-          width: 100%;
-        }
-
-        .stats {
-          gap: 12px 20px;
-        }
-
-        .map-shell {
-          min-height: 420px;
-        }
+        .button-secondary { width: 100%; }
+        .steps > li { grid-template-columns: 1fr; gap: 10px; }
       }
     </style>
   </head>
   <body>
     <header>
       <div class="container nav">
-        <div class="brand" aria-label="Actrip home">
-          <div class="logo">A</div>
-          <span>Actrip</span>
-        </div>
+        <a class="brand" href="#" aria-label="acTrip home">
+          <img src="./images/actrip-logo.webp" alt="" width="46" height="43" />
+          <span class="wordmark"><span class="ac">ac</span><span class="trip">Trip</span></span>
+        </a>
 
         <nav class="nav-links" aria-label="Main navigation">
           <a href="#features">Features</a>
-          <a href="#benefits">Benefits</a>
-          <a href="#demo">Demo</a>
+          <a href="#routes">Plan a route</a>
+          <a href="#bikability">Bikability score</a>
+          <a href="#code">Code</a>
         </nav>
 
-        <a class="nav-cta" href="./taichung-transit-map_Route_recommendation.html">Try demo</a>
+        <a class="nav-cta" href="./taichung-transit-map_Route_recommendation.html">Open the map</a>
       </div>
     </header>
 
@@ -519,106 +429,221 @@
       <section class="hero">
         <div class="container hero-inner">
           <div>
-            <div class="eyebrow">Active mobility for every trip</div>
-            <h1>Navigate smarter. Ride greener.</h1>
+            <div class="eyebrow">Hack Your District 2026 · Taichung</div>
+            <h1>Track. Ride. Discover.</h1>
             <p class="lead">
-              Actrip helps people choose active modes of transport like biking by highlighting
-              the safest, smoothest, and most enjoyable routes in the city. It shows road
-              conditions and obstacles during navigation so riders can avoid rough surfaces,
-              blocked paths, and risky segments in real time.
+              acTrip is a trip planner for Taichung that puts bus, MRT, YouBike and walking on one
+              map. Every bike route gets a bikability score, so you can see how comfortable the
+              ride will be and pick a more pleasant route when the shortest one isn't.
             </p>
 
-            <div class="cta-row" id="demo">
-              <a class="button-primary" href="./taichung-transit-map_Route_recommendation.html">Try demo</a>
-              <a class="button-secondary" href="#features">Learn more</a>
-            </div>
-
-            <div class="stats" id="benefits">
-              <div class="stat">
-                <strong>Bike-first</strong>
-                <span>routes prioritized</span>
-              </div>
-              <div class="stat">
-                <strong>Live</strong>
-                <span>road condition alerts</span>
-              </div>
-              <div class="stat">
-                <strong>Safer</strong>
-                <span>obstacle-aware guidance</span>
-              </div>
+            <div class="cta-row">
+              <a class="button-primary" href="./taichung-transit-map_Route_recommendation.html">Open the map</a>
+              <a class="button-secondary" href="#routes">How to use it</a>
             </div>
           </div>
 
-          <div class="mockup" aria-label="Actrip map preview">
-            <div class="map-shell">
-              <div class="map-grid"></div>
-              <div class="road r1"></div>
-              <div class="road r2"></div>
-              <div class="road r3"></div>
-              <div class="route"></div>
-              <div class="pin start"></div>
-              <div class="pin end"></div>
-
-              <div class="alert">
-                <div class="alert-tag">Road warning</div>
-                <strong>Construction zone ahead</strong>
-                <small>Bike route detours around broken pavement and temporary barriers.</small>
-              </div>
-
-              <div class="status-badges">
-                <span class="badge">Smooth ride</span>
-                <span class="badge warning">Caution</span>
-                <span class="badge alert">Obstacle</span>
-              </div>
-            </div>
+          <div class="hero-logo">
+            <img src="./images/actrip-logo.webp" alt="acTrip logo" width="359" height="335" />
           </div>
         </div>
       </section>
 
-      <section class="features" id="features">
+      <section class="block" id="features">
         <div class="container">
           <div class="section-heading">
-            <h2>Built for active urban movement</h2>
-            <p>
-              Actrip turns city navigation into a healthier, more comfortable experience by
-              balancing convenience, safety, and environmental impact.
-            </p>
+            <h2>What's in the app</h2>
+            <p>One map of Taichung with everything you need to get from A to B without a car.</p>
           </div>
 
           <div class="feature-grid">
-            <article class="feature-card">
-              <div class="icon">🚲</div>
-              <h3>Bike-first routing</h3>
+            <article class="card">
+              <h3>Trip planner</h3>
               <p>
-                Prioritize cyclist-friendly paths, low-traffic segments, and connected mobility
-                networks so biking feels natural, efficient, and enjoyable.
+                Compare four ways to travel: Fastest (bus, metro and bike combined), Transit, Bike
+                with YouBike, and Walk. Add stops on the way and drag the start and end pins.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Bikability score</h3>
+              <p>
+                Roads are rated from 1★ to 5★ for cycling based on their width and the green space
+                beside them. Bike routes show their average score and flag red sections.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Transit and YouBike layers</h3>
+              <p>
+                Bus stops and routes, TRA, MRT and High Speed Rail stations, and YouBike stations
+                with live bike and dock counts where available.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="routes">
+        <div class="container">
+          <div class="section-heading">
+            <h2>How to plan and navigate a route</h2>
+            <p>Everything happens in the panel on the left of the map (at the bottom on phones).</p>
+          </div>
+
+          <ol class="steps">
+            <li>
+              <div class="card">
+                <h3>Set your start and destination</h3>
+                <p>
+                  Under <strong>Plan a trip</strong>, type a place, stop or station into the
+                  <strong>From</strong> (A) and <strong>To</strong> (B) fields and pick a suggestion.
+                  You can also press <span class="kbd">Pick on map</span> and click the map, or use
+                  <span class="kbd">My location</span> to start from where you are.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="card">
+                <h3>Adjust the trip</h3>
+                <ul>
+                  <li>Drag the A and B pins on the map to fine-tune the points.</li>
+                  <li><span class="kbd">+ Add stop</span> adds a place to visit on the way.</li>
+                  <li><span class="kbd">Swap</span> reverses the trip, <span class="kbd">Clear</span> starts over.</li>
+                </ul>
+              </div>
+            </li>
+            <li>
+              <div class="card">
+                <h3>Choose how to travel</h3>
+                <p>The four tabs show the best time for each mode:</p>
+                <ul>
+                  <li><strong>Fastest</strong>: bus, metro and YouBike combined, quickest first.</li>
+                  <li><strong>Transit</strong>: bus and metro with walking.</li>
+                  <li><strong>Bike</strong>: ride a YouBike between the stations nearest to A and B.</li>
+                  <li><strong>Walk</strong>: on foot the whole way.</li>
+                </ul>
+              </div>
+            </li>
+            <li>
+              <div class="card">
+                <h3>Open an option and follow it on the map</h3>
+                <p>
+                  Click an option (Option 1, Option 2, …) to expand its step-by-step legs: where to
+                  walk, which bus or MRT to board and where to get off, and which YouBike station to
+                  rent from and return to. The selected route is drawn on the map, and walking and
+                  cycling legs follow the actual streets.
+                </p>
+                <p>
+                  Times are estimates: buses have no timetable in the app, and live YouBike counts
+                  can change before you arrive, so check before you go.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="card">
+                <h3>Save it as a favourite</h3>
+                <p>
+                  Under <strong>Favourite routes</strong>, type a name and press
+                  <span class="kbd">Save</span>. The start, destination, stops and travel mode are
+                  kept in your browser together with the route's bike rating. Choose a favourite
+                  from the list to reload the whole trip; its saved rating shows straight away and
+                  is updated when the route is rated again.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="block" id="bikability">
+        <div class="container">
+          <div class="section-heading">
+            <h2>How to read the bikability score</h2>
+            <p>
+              The score tells you how comfortable a road is for cycling, from 1★ (narrow, avoid if
+              you can) to 5★ (wide or next to green space).
+            </p>
+          </div>
+
+          <div class="bika-grid">
+            <article class="card">
+              <h3>Road scores</h3>
+              <p>
+                Turn on <strong>Bikability score</strong> under <strong>Layers</strong> and zoom in
+                to street level. Roads are coloured by score; tap one to see its score and why.
+              </p>
+              <ul class="scale">
+                <li><span class="sw" style="background: var(--star1)"></span><span><strong>1★</strong>under 4 m wide</span></li>
+                <li><span class="sw" style="background: var(--star2)"></span><span><strong>2★</strong>4–6 m</span></li>
+                <li><span class="sw" style="background: var(--star3)"></span><span><strong>3★</strong>6–10 m</span></li>
+                <li><span class="sw" style="background: var(--star4)"></span><span><strong>4★</strong>10–15 m</span></li>
+                <li><span class="sw" style="background: var(--star5)"></span><span><strong>5★</strong>15 m or wider</span></li>
+                <li><span class="sw nd"></span><span><strong>No data</strong>counted as 2.5★</span></li>
+              </ul>
+              <p style="margin-top: 14px">
+                Width is measured, or estimated from lanes, road name and bus routes. Roads within
+                30 m of a park, or with 25% or more greenery beside them in satellite imagery, score
+                4–5★.
               </p>
             </article>
 
-            <article class="feature-card">
-              <div class="icon">🛣️</div>
-              <h3>Road condition awareness</h3>
+            <article class="card">
+              <h3>Bike route ratings</h3>
               <p>
-                Surface quality, potholes, construction areas, and steep or uneven segments are
-                surfaced before the rider reaches them, helping people choose the best route.
+                In the <strong>Bike</strong> tab, each option shows a rating: the average road score
+                along the ride, weighted by distance, plus the share of the ride on 4–5★ roads.
               </p>
+              <ul class="plain">
+                <li>
+                  <strong>Red sections</strong>
+                  <svg class="warn-tri" viewBox="0 0 24 22" aria-hidden="true"><path d="M12 1.5 23 20.5H1z" fill="var(--star1)" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                  are 1★ stretches, marked with a warning sign on the map. Ride them with care.
+                </li>
+                <li>
+                  <strong>Pleasant route</strong>: if the shortest route has red sections or averages
+                  below 3.5★, acTrip looks for an alternative close by with no red sections and 3.5★
+                  or better, and shows how much longer the detour is.
+                </li>
+                <li>
+                  A <strong>warning</strong> appears when a route rates below 2★ overall.
+                </li>
+              </ul>
             </article>
+          </div>
 
-            <article class="feature-card">
-              <div class="icon">⚠️</div>
-              <h3>Obstacle-aware navigation</h3>
-              <p>
-                Temporary barriers, narrow passages, and blocked lanes are flagged in real time so
-                navigation adjusts instantly during the trip.
-              </p>
-            </article>
+          <div class="note">
+            <strong>Your feedback changes the scores.</strong> Rate a whole ride with
+            <span class="kbd">Good</span> / <span class="kbd">Bad</span> under its rating, or tap any
+            section of a route on the map to rate just that road. Votes are saved in your browser
+            and count the next time routes are rated. To download or clear them, press
+            <span class="kbd">Show debug info</span> at the bottom of the panel.
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="code">
+        <div class="container">
+          <div class="section-heading">
+            <h2>Source code</h2>
+            <p>acTrip is open source. Have a look, open an issue or build on it.</p>
+          </div>
+
+          <div class="card code-card">
+            <code>github.com/RobinFischer/HYD26_Actrip</code>
+            <a class="button-secondary" href="https://github.com/RobinFischer/HYD26_Actrip" target="_blank" rel="noopener">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+              View on GitHub
+            </a>
           </div>
         </div>
       </section>
     </main>
 
     <footer>
-      <div class="container">Actrip · Sustainable movement, safer routes.</div>
+      <div class="container">
+        acTrip · built for
+        <a href="https://www.tu.berlin/arte/forschung/projekte/hackyourdistrict/hackyourdistrict-2026" target="_blank" rel="noopener" style="text-decoration: underline">Hack Your District 2026</a>
+        · <a href="https://github.com/RobinFischer/HYD26_Actrip" target="_blank" rel="noopener" style="text-decoration: underline">GitHub</a>
+      </div>
     </footer>
   </body>
 </html>

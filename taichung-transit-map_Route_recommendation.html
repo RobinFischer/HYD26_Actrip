@@ -248,6 +248,16 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
 .small-pin { width: 16px; height: 16px; font-size: 10px; justify-self: center; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 
+/* Debug info (status, data caches, base map) stays hidden until the toggle at the bottom is on */
+.panel:not(.show-debug) .debug-only { display: none !important; }
+.debug-bar { padding: 8px 18px; justify-items: end; }
+.btn.debug-toggle { font-size: 11.5px; font-weight: 500; padding: 4px 9px; border-color: var(--line); color: var(--muted); }
+.btn.debug-toggle.on { background: transparent; border-color: var(--accent); color: var(--accent); }
+
+.fav .row input { flex: 1; min-width: 0; }
+.fav .row select { min-width: 0; }
+.fav-score { font-weight: 600; color: var(--fg); }
+
 
 .vote-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; }
 .votes { display: inline-flex; gap: 6px; }
@@ -343,7 +353,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
           <div class="city">Taichung · 臺中交通地圖</div>
         </div>
       </div>
-      <div class="status" id="status">Loading stops and stations…</div>
+      <div class="status debug-only" id="status">Loading stops and stations…</div>
       <div class="errbox" id="errBox" hidden></div>
     </div>
     <button class="collapse-btn" id="collapseBtn" aria-expanded="true">Hide</button>
@@ -378,6 +388,19 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     <div class="trip-out" id="tripOut" hidden></div>
   </section>
 
+  <section aria-labelledby="lbl-fav" class="fav">
+    <div class="label" id="lbl-fav">Favourite routes</div>
+    <div class="row">
+      <input type="search" id="favName" placeholder="Name, e.g. Home → Work" autocomplete="off" aria-label="Favourite route name" maxlength="60">
+      <button type="button" class="btn small" id="favSave" disabled title="Plan a trip first, then save it">Save</button>
+    </div>
+    <div class="row">
+      <select id="favSelect" aria-label="Load a favourite route"><option value="">No favourite routes yet</option></select>
+      <button type="button" class="btn small" id="favDelete" disabled title="Delete the selected favourite">Delete</button>
+    </div>
+    <div class="hint" id="favInfo" hidden></div>
+  </section>
+
   <section aria-labelledby="lbl-layers">
     <div class="label" id="lbl-layers">Layers</div>
     <label class="layer"><input type="checkbox" id="lyr-bus" checked><span class="sw" style="color:var(--bus)"></span><span class="name">Bus stops<small>公車站</small></span><span class="count" id="c-bus">–</span></label>
@@ -393,14 +416,14 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       <div class="bika-labels"><span>1★ narrow</span><span>3★</span><span>5★ wide or beside green</span></div>
       <div class="hint">Width: under 4 m 1★, 4–6 m 2★, 6–10 m 3★, 10–15 m 4★, 15 m+ 5★, measured or estimated from lanes, road name and bus routes. Roads within 30 m of parks, or with 25%+ greenery beside them in satellite imagery, score 4–5★. On trip ratings, stretches without road data count as 2.5★.</div>
     </div>
-    <div class="fb-summary" id="fbSummary"><span>No feedback yet. Rate a ride or a road section to adjust the scores.</span>
+    <div class="fb-summary debug-only" id="fbSummary"><span>No feedback yet. Rate a ride or a road section to adjust the scores.</span>
       <span class="fb-actions"><button type="button" class="btn small" id="fbDownload" hidden>Download feedback</button><button type="button" class="btn small" id="fbClear" hidden>Clear</button></span>
     </div>
-    <div class="fb-summary" id="cacheSummary"><span>No saved road scores yet. Roads are scored once and then saved.</span>
+    <div class="fb-summary debug-only" id="cacheSummary"><span>No saved road scores yet. Roads are scored once and then saved.</span>
       <span class="fb-actions"><button type="button" class="btn small" id="cacheClear" hidden>Clear saved scores</button></span>
     </div>
-    <div class="hint">Bus stops are drawn smaller when zoomed out. Zoom in to tap one.</div>
-    <div class="yb-status" id="ybStatus"><span>Checking live YouBike availability…</span><button type="button" class="btn small" id="ybRefresh">Refresh</button></div>
+    <div class="hint debug-only">Bus stops are drawn smaller when zoomed out. Zoom in to tap one.</div>
+    <div class="yb-status debug-only" id="ybStatus"><span>Checking live YouBike availability…</span><button type="button" class="btn small" id="ybRefresh">Refresh</button></div>
     <div class="yb-legend"><span><i style="background:var(--bike)"></i>Bikes available</span><span><i style="background:var(--nobike)"></i>No bikes</span><span><i style="background:var(--fulldock)"></i>No empty docks</span></div>
   </section>
 
@@ -431,7 +454,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     <div class="access" id="accessOut" hidden></div>
   </section>
 
-  <section aria-labelledby="lbl-base">
+  <section aria-labelledby="lbl-base" class="debug-only">
     <label class="label" id="lbl-base" for="basemap">Base map</label>
     <select id="basemap">
       <option value="nlsc">Taiwan e-Map (NLSC 臺灣通用電子地圖)</option>
@@ -440,6 +463,10 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       <option value="osm">OpenStreetMap standard</option>
     </select>
     <div class="attrib">Bus stops and routes from the Taichung bus stop dataset (taichung_bus_stops_details.csv), built into this page. Rail and YouBike stations © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, loaded via the Overpass API and saved in your browser for 7 days.</div>
+  </section>
+
+  <section class="debug-bar">
+    <button type="button" class="btn small debug-toggle" id="debugToggle" aria-pressed="false">Show debug info</button>
   </section>
 </aside>
 
@@ -1420,9 +1447,9 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     return L.divIcon({ className: "", iconSize: [28, 28], iconAnchor: [14, 14],
       html: '<div class="pin ' + cls + ' map-pin">' + letter + "</div>" });
   }
-  function setEnd(which, latlng, label) {
+  function setEnd(which, latlng, label, noRun) {
     trip[which] = { lat: latlng.lat, lng: latlng.lng, label: label };
-    $(which === "from" ? "tripFrom" : "tripTo").value = label;
+    $(which === "from" ? "tripFrom" : "tripTo").value = label || "";
     if (pinMarkers[which]) map.removeLayer(pinMarkers[which]);
     var m = L.marker(latlng, { icon: pinIcon(which === "from" ? "A" : "B", which === "from" ? "pin-o" : "pin-d"),
                                draggable: true, zIndexOffset: 2000, keyboard: false });
@@ -1432,7 +1459,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     });
     m.addTo(map);
     pinMarkers[which] = m;
-    runTrip();
+    if (!noRun) runTrip();
   }
   // which = "from", "to" or "stop:<index>"
   function setTarget(which, latlng, label) {
@@ -1647,7 +1674,141 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     trip.stops = []; renderStopRows();
     tripLayer.clearLayers(); $("tripOut").hidden = true; $("tripHint").hidden = false;
     trip.result = null;
+    $("favSelect").value = ""; showFavInfo(); updateFavButtons();
   });
+
+  // ---------- Favourite routes ----------
+  // Saved in this browser with their stops, travel mode and the bike rating worked out when saved
+  var FAV = { key: "txg-favourites-v1", max: 50 };
+  var favs = [];
+  try { favs = JSON.parse(localStorage.getItem(FAV.key) || "[]"); if (!Array.isArray(favs)) favs = []; } catch (e) { favs = []; }
+  function saveFavs() { try { localStorage.setItem(FAV.key, JSON.stringify(favs)); } catch (e) { fbToast("Couldn't save favourites: this browser blocks storage."); } }
+  function plainPt(p) { return { lat: p.lat, lng: p.lng, label: p.label || "" }; }
+  function tripPts() { return trip.from && trip.to ? [trip.from].concat(trip.stops.filter(Boolean)).concat([trip.to]) : null; }
+  function ptsSig(pts) { return pts.map(function (p) { return p.lat.toFixed(5) + "," + p.lng.toFixed(5); }).join("|"); }
+  function favSig(f) { return ptsSig([f.from].concat(f.stops).concat([f.to])); }
+  function rated(t) { return t && t.bika && (t.bikaState === "done" || t.bikaState === "partial"); }
+  // The bike rating of the trip on screen, once it has finished
+  function currentBika() {
+    var r = trip.result;
+    if (!r || !r.bike || r.bike.sameStation || !rated(r.bike)) return null;
+    return {
+      score: Math.round(r.bike.bika.score * 10) / 10,
+      red: r.bike.redCount || 0,
+      good: Math.round(r.bike.bika.good * 100),
+      pleasant: rated(r.pleasant) ? Math.round(r.pleasant.bika.score * 10) / 10 : null,
+      t: new Date().toISOString()
+    };
+  }
+  function favLabel(f) {
+    var n = f.stops.length;
+    return f.name + " · " + (f.bika ? f.bika.score.toFixed(1) + "★" : "not rated yet") + (n ? " · " + n + " stop" + (n > 1 ? "s" : "") : "");
+  }
+  function renderFavs(selected) {
+    var sel = $("favSelect");
+    sel.innerHTML = favs.length ? '<option value="">Choose a favourite route…</option>' : '<option value="">No favourite routes yet</option>';
+    favs.forEach(function (f, i) {
+      var o = document.createElement("option");
+      o.value = String(i); o.textContent = favLabel(f);
+      sel.appendChild(o);
+    });
+    sel.disabled = !favs.length;
+    sel.value = selected != null && favs[selected] ? String(selected) : "";
+    showFavInfo();
+  }
+  function selectedFav() { var v = $("favSelect").value; return v === "" ? null : favs[+v] || null; }
+  function showFavInfo() {
+    var f = selectedFav(), el = $("favInfo");
+    $("favDelete").disabled = !f;
+    if (!f) { el.hidden = true; return; }
+    var path = [f.from].concat(f.stops).concat([f.to]).map(function (p) { return esc(p.label || "map point"); }).join(" → ");
+    var b = f.bika;
+    el.innerHTML = path + "<br>" + (b
+      ? 'Bike rating ' + bikeRatingHtml(b.score, true) + ' · ' + b.good + "% on 4–5★ roads" +
+        (b.red ? " · " + b.red + " red section" + (b.red > 1 ? "s" : "") : " · no red sections") +
+        (b.pleasant != null ? ' · Pleasant route <span class="fav-score">' + b.pleasant.toFixed(1) + "★</span>" : "") +
+        " · calculated " + new Date(b.t).toLocaleDateString()
+      : "No bike rating yet. It's added once the Bike option has been rated.");
+    el.hidden = false;
+  }
+  function updateFavButtons() {
+    var ok = !!(trip.from && trip.to);
+    $("favSave").disabled = !ok;
+    $("favSave").title = ok ? "Save this trip as a favourite" : "Plan a trip first, then save it";
+  }
+  // Called when a bike rating finishes or changes: keeps the matching favourite's score up to date
+  function favRated() {
+    var pts = tripPts(); if (!pts || !favs.length) return;
+    var b = currentBika(); if (!b) return;
+    var sig = ptsSig(pts), changed = false;
+    favs.forEach(function (f) {
+      if (favSig(f) !== sig) return;
+      if (f.bika && f.bika.score === b.score && f.bika.red === b.red && f.bika.pleasant === b.pleasant) return;
+      f.bika = b; changed = true;
+    });
+    if (changed) { saveFavs(); renderFavs($("favSelect").value === "" ? null : +$("favSelect").value); }
+  }
+  $("favSave").addEventListener("click", function () {
+    var pts = tripPts(); if (!pts) return;
+    var name = $("favName").value.trim() ||
+      (trip.from.label || "Start") + " → " + (trip.to.label || "Destination");
+    var f = { name: name, from: plainPt(trip.from), to: plainPt(trip.to), stops: trip.stops.filter(Boolean).map(plainPt),
+              mode: trip.mode, bika: currentBika(), saved: new Date().toISOString() };
+    var i = favs.findIndex(function (x) { return x.name === name; });
+    if (i > -1) favs[i] = f;
+    else { if (favs.length >= FAV.max) { fbToast("You can keep up to " + FAV.max + " favourites. Delete one first."); return; } favs.push(f); i = favs.length - 1; }
+    saveFavs(); renderFavs(i);
+    $("favName").value = "";
+    fbToast((f.bika ? "Saved \"" + name + "\" with a bike rating of " + f.bika.score.toFixed(1) + "★."
+                    : "Saved \"" + name + "\". Its bike rating is added once it's calculated."));
+  });
+  $("favName").addEventListener("keydown", function (e) { if (e.key === "Enter" && !$("favSave").disabled) $("favSave").click(); });
+  function loadFav(f) {
+    ["from", "to"].forEach(function (w) {
+      if (pinMarkers[w]) map.removeLayer(pinMarkers[w]);
+      pinMarkers[w] = null; trip[w] = null;
+    });
+    trip.pick = null;
+    trip.stops = f.stops.map(plainPt);
+    renderStopRows();
+    setEnd("from", L.latLng(f.from.lat, f.from.lng), f.from.label, true);
+    setEnd("to", L.latLng(f.to.lat, f.to.lng), f.to.label, true);
+    if (f.mode) trip.mode = f.mode;
+    runTrip();
+  }
+  $("favSelect").addEventListener("change", function () {
+    var f = selectedFav();
+    showFavInfo();
+    if (f) loadFav(f);
+  });
+  var favDelArm = null;
+  $("favDelete").addEventListener("click", function () {
+    var v = $("favSelect").value; if (v === "") return;
+    if (favDelArm !== v) {
+      favDelArm = v; this.textContent = "Sure?";
+      var btn = this; setTimeout(function () { favDelArm = null; btn.textContent = "Delete"; }, 4000);
+      return;
+    }
+    var name = favs[+v].name;
+    favs.splice(+v, 1); favDelArm = null; this.textContent = "Delete";
+    saveFavs(); renderFavs(null);
+    fbToast("Deleted \"" + name + "\".");
+  });
+  renderFavs(null);
+
+  // ---------- Debug info toggle ----------
+  var DEBUG_KEY = "txg-debug-v1";
+  function setDebug(on) {
+    $("panel").classList.toggle("show-debug", on);
+    var b = $("debugToggle");
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+    b.textContent = on ? "Hide debug info" : "Show debug info";
+    try { localStorage.setItem(DEBUG_KEY, on ? "1" : "0"); } catch (e) {}
+  }
+  var debugOn = false;
+  try { debugOn = localStorage.getItem(DEBUG_KEY) === "1"; } catch (e) {}
+  setDebug(debugOn);
+  $("debugToggle").addEventListener("click", function () { setDebug(!$("panel").classList.contains("show-debug")); });
 
   function fmtM(m) { return m < 1000 ? Math.round(m / 10) * 10 + " m" : (m / 1000).toFixed(1) + " km"; }
   function fmtMin(x) { return Math.max(1, Math.round(x)) + " min"; }
@@ -1679,6 +1840,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   trip.mode = "multi";
 
   function runTrip() {
+    updateFavButtons();
     if (!trip.from || !trip.to) return;
     if (!planner) planner = createPlanner(BUS, RAILDATA);
     var stops = trip.stops.filter(Boolean), r;
@@ -3006,6 +3168,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
       if (window.console) console.info("[acTrip] bike route rated in " + t.bikaMs + " ms" + (fetched ? "" : " (saved scores)"));
       computeTripRating(t);
       if (trip.result) { trip.noFit = true; renderTrips(); }
+      favRated();
     });
   }
   function progressRender(t) {   // redraw only if this trip is the one on screen, without moving the map
@@ -3039,7 +3202,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
   function rerateShown() {   // after a vote: update the trip on screen immediately
     if (!trip.result) return;
     var t = modeTrips(trip.mode)[trip.active];
-    if (t && t.bika) { computeTripRating(t); trip.noFit = true; renderTrips(); }
+    if (t && t.bika) { computeTripRating(t); trip.noFit = true; renderTrips(); favRated(); }
   }
   var BIKE_SVG = '<svg viewBox="0 0 24 16" aria-hidden="true"><circle cx="5" cy="11" r="4"/><circle cx="19" cy="11" r="4"/>' +
     '<path d="M5 11 9.5 4H15l4 7M9.5 4 12 11l3-7M7.5 2.5h3.5M15 4l-.8-2h2"/></svg>';
