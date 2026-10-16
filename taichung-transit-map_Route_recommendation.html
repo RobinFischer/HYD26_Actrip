@@ -606,13 +606,7 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     });
   }
   var opQueue = [], opActive = 0, OP_MAX = 2;
-  function overpass(query, label, priority) {   // priority: 0 = trip rating (first), 1 = Pleasant search, 2 = map layer
-    return new Promise(function (resolve, reject) {
-      opQueue.push({ q: query, label: label, pr: priority == null ? 2 : priority, res: resolve, rej: reject, t: Date.now() });
-      opQueue.sort(function (a, b) { return a.pr - b.pr || a.t - b.t; });
-      pumpOverpass();
-    });
-  }
+  function overpass(query, label) { return overpassNow(query, label); }
   function pumpOverpass() {
     while (opActive < OP_MAX && opQueue.length) {
       var job = opQueue.shift();
@@ -3002,13 +2996,9 @@ input[type="search"]:focus, select:focus, button:focus-visible, .layer input:foc
     t.bikaProg = { done: 0, total: 0 };
     computeTripRating(t);   // roads already saved are coloured straight away
     progressRender(t);
-    Promise.all(legs.map(function (l, li) {
+    Promise.all(legs.map(function (l) {
       if (t.roadsLoaded) return Promise.resolve();   // e.g. the Pleasant route: its roads came with the search band
-      return loadRouteProgressive(bikePathOf(l), 30, "c", function (done, total) {
-        prog[li] = [done, total];
-        t.bikaProg = { done: prog.reduce(function (a, x) { return a + x[0]; }, 0), total: prog.reduce(function (a, x) { return a + x[1]; }, 0) };
-        if (done) { computeTripRating(t); progressRender(t); }
-      }).then(function (res) { failed += res.failed; if (!res.cached) fetched++; });
+      return loadRoute(bikePathOf(l), 30, "c").then(function (res) { failed += res.failed; if (!res.cached) fetched++; });
     })).then(function () {
       t.bikaFromCache = !fetched;
       t.bikaState = failed ? "partial" : "done";
